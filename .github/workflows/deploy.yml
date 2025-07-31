@@ -1,0 +1,55 @@
+name: Deploy to Google Cloud Run
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: repdf-pdf-management-tool
+  REGION: us-west1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build production
+      run: npm run build:prod
+
+    - name: Setup Google Cloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
+
+    - name: Build Docker image
+      run: docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME .
+
+    - name: Push to Google Container Registry
+      run: docker push gcr.io/$PROJECT_ID/$SERVICE_NAME
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy $SERVICE_NAME \
+          --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
+          --platform managed \
+          --region $REGION \
+          --allow-unauthenticated \
+          --port 8080
