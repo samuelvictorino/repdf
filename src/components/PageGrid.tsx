@@ -126,7 +126,7 @@ const PageThumbnail = React.memo(({ pageInfo, isSelected, isDimmed, selectionInd
   const { canvasRef, isLoading } = usePdfPage(loadedDoc, pageInfo, 0.5);
   
   return (
-    <div className={`relative aspect-[3/4] rounded-lg shadow-md transition-all duration-300 group ${isSelected ? 'ring-4 ring-offset-2 ring-offset-gray-100 dark:ring-offset-gray-900 ring-accent-500 scale-105' : 'bg-white dark:bg-gray-800'} ${isDimmed ? 'opacity-30' : ''}`}>
+    <div className={`relative aspect-square rounded-lg shadow-md transition-all duration-300 group ${isSelected ? 'ring-4 ring-offset-2 ring-offset-gray-100 dark:ring-offset-gray-900 ring-accent-500 scale-105' : 'bg-white dark:bg-gray-800'} ${isDimmed ? 'opacity-30' : ''}`}>
       <div className="w-full h-full rounded-md overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-800">
         {isLoading && <ShimmerPlaceholder />}
         <canvas ref={canvasRef} className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'} ${isSelected ? 'opacity-60' : ''}`} />
@@ -162,7 +162,7 @@ interface PageGridProps {
 
 const PageGrid = ({ fileId, pages }: PageGridProps) => {
   const { state, dispatch } = useAppContext();
-  const { draggedPageIds, isDragging: isGloballyDragging } = state.uiState;
+  const { draggedPageIds, isDragging: isGloballyDragging, thumbnailScale } = state.uiState;
   const gridRef = useRef<HTMLDivElement>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
 
@@ -302,6 +302,21 @@ const PageGrid = ({ fileId, pages }: PageGridProps) => {
   const { language } = state.uiState;
   const { t } = useTranslation(language);
 
+  // Dynamic grid classes based on thumbnail scale
+  const getGridClasses = () => {
+    const base = "flex-grow p-4 md:p-8 grid gap-x-6 gap-y-8 auto-rows-min transition-all duration-500 ease-in-out";
+    switch (thumbnailScale) {
+      case 'small':
+        return `${base} grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12`;
+      case 'medium':
+        return `${base} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8`;
+      case 'large':
+        return `${base} grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6`;
+      default:
+        return `${base} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8`;
+    }
+  };
+
   if (pages.length === 0) {
     return (
         <div 
@@ -349,7 +364,7 @@ const PageGrid = ({ fileId, pages }: PageGridProps) => {
             onDragStart={(e) => handleDragStart(e, page.id)}
             onDragEnd={handleDragEnd}
             onClick={(e) => handleSelection(page.id, e)}
-            className={`cursor-pointer transition-all duration-300 relative aspect-square ${isBeingDragged ? 'opacity-0 scale-50' : 'opacity-100 scale-100'}`}
+            className={`cursor-pointer transition-all duration-500 ease-in-out relative aspect-square ${isBeingDragged ? 'opacity-0 scale-50' : 'opacity-100 scale-100'}`}
         >
           <PageThumbnail pageInfo={page} isSelected={isSelected} isDimmed={isGloballyDragging && !isBeingDragged} selectionIndex={selectionIndex} />
         </div>
@@ -369,7 +384,7 @@ const PageGrid = ({ fileId, pages }: PageGridProps) => {
   return (
     <div 
         ref={gridRef}
-        className="flex-grow p-4 md:p-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-x-6 gap-y-8 auto-rows-min"
+        className={getGridClasses()}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onDragLeave={() => setDropIndex(null)}

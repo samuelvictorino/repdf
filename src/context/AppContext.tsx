@@ -29,6 +29,7 @@ const initialState: AppState = {
     confirmCloseInfo: null,
     aiSuggestionInfo: null,
     deleteConfirmationInfo: null,
+    thumbnailScale: 'medium',
   },
 };
 
@@ -449,6 +450,8 @@ const appReducer = (state: AppState, action: Action): AppState => {
       return { ...state, uiState: { ...uiState, aiSuggestionInfo: action.payload } };
     case 'SET_DELETE_CONFIRMATION_INFO':
       return { ...state, uiState: { ...uiState, deleteConfirmationInfo: action.payload } };
+    case 'SET_THUMBNAIL_SCALE':
+      return { ...state, uiState: { ...uiState, thumbnailScale: action.payload } };
     default:
       return state;
   }

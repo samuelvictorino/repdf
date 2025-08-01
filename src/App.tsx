@@ -658,8 +658,28 @@ const ViewControlsToolbar = () => {
                     <span className="w-5 h-5">{ICONS.ocr}</span><span>Make Searchable (OCR)</span>
                 </button>
             </div>
-            <div className="text-sm text-gray-500">
-                {selectionCount > 0 ? `${selectionCount} page(s) selected` : 'No pages selected'}
+            <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-500">Size:</span>
+                    <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                        {(['small', 'medium', 'large'] as const).map((size) => (
+                            <button
+                                key={size}
+                                onClick={() => dispatch({ type: 'SET_THUMBNAIL_SCALE', payload: size })}
+                                className={`px-2 py-1 text-xs rounded-md transition-all duration-200 ${
+                                    state.uiState.thumbnailScale === size 
+                                        ? 'bg-accent-500 text-white shadow-sm' 
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                }`}
+                            >
+                                {size.charAt(0).toUpperCase() + size.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="text-sm text-gray-500">
+                    {selectionCount > 0 ? `${selectionCount} page(s) selected` : 'No pages selected'}
+                </div>
             </div>
         </div>
     );
@@ -731,15 +751,15 @@ const App = () => {
             // Lighter shades - mix with white
             factor = (500 - shade) / 450; // 0 to 1
             const mix = (c: number) => Math.round(c + (255 - c) * factor);
-            root.style.setProperty(`--accent-color-${shade}`, `${mix(r)}, ${mix(g)}, ${mix(b)}`);
+            root.style.setProperty(`--accent-color-${shade}`, `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`);
         } else if (shade === 500) {
             // Base color
-            root.style.setProperty(`--accent-color-${shade}`, `${r}, ${g}, ${b}`);
+            root.style.setProperty(`--accent-color-${shade}`, `rgb(${r}, ${g}, ${b})`);
         } else {
             // Darker shades - mix with black
             factor = (shade - 500) / 450; // 0 to 1
             const mix = (c: number) => Math.round(c * (1 - factor));
-            root.style.setProperty(`--accent-color-${shade}`, `${mix(r)}, ${mix(g)}, ${mix(b)}`);
+            root.style.setProperty(`--accent-color-${shade}`, `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`);
         }
     });
 

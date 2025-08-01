@@ -101,6 +101,7 @@ export interface UIState {
   confirmCloseInfo: { fileId: string; x: number; y: number } | null;
   aiSuggestionInfo: AiSuggestionInfo | null;
   deleteConfirmationInfo: DeleteConfirmationInfo | null;
+  thumbnailScale: 'small' | 'medium' | 'large';
 }
 
 export interface AppState {
@@ -148,7 +149,8 @@ export type Action =
   | { type: 'SET_RENAME_TARGET'; payload: string | null }
   | { type: 'SET_CONFIRM_CLOSE_INFO'; payload: { fileId: string; x: number; y: number } | null }
   | { type: 'SET_AI_SUGGESTION_INFO'; payload: AiSuggestionInfo | null }
-  | { type: 'SET_DELETE_CONFIRMATION_INFO'; payload: DeleteConfirmationInfo | null };
+  | { type: 'SET_DELETE_CONFIRMATION_INFO'; payload: DeleteConfirmationInfo | null }
+  | { type: 'SET_THUMBNAIL_SCALE'; payload: 'small' | 'medium' | 'large' };
 
 export interface AppContextType {
   state: AppState;
