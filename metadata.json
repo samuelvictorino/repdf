@@ -1,0 +1,5 @@
+{
+  "name": "RePDF - Executive PDF Suite",
+  "description": "A high-performance, client-side web application for advanced PDF manipulation. Merge, reorder, rotate, and delete pages with a desktop-like experience, enhanced with AI features for OCR and file naming. All processing happens in your browser, ensuring your data remains private.",
+  "requestFramePermissions": []
+}
