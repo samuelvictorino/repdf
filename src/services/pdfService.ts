@@ -230,9 +230,20 @@ const addPagesToDoc = async (
         const pdfLibDoc = sourceDocCache[sourceDocId];
         const [copiedPage] = await pdfDoc.copyPages(pdfLibDoc, [pageInfo.sourcePageIndex]);
         
-        const currentRotation = copiedPage.getRotation().angle;
-        const additionalRotation = pageInfo.rotation - currentRotation;
-        copiedPage.rotate(additionalRotation);
+        // Handle rotation using PDFLib's rotation system
+        if (pageInfo.rotation && pageInfo.rotation !== 0) {
+            try {
+                // Try the PDFLib rotate method
+                if (typeof copiedPage.setRotation === 'function') {
+                    copiedPage.setRotation({ angle: pageInfo.rotation });
+                } else if (typeof copiedPage.rotate === 'function') {
+                    copiedPage.rotate(pageInfo.rotation);
+                }
+                // If neither method exists, skip rotation (better than crashing)
+            } catch (rotationError) {
+                console.warn('Could not apply rotation to page:', rotationError);
+            }
+        }
         
         // Embed OCR text if available
         if(pageInfo.ocrText) {

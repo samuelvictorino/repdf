@@ -102,6 +102,8 @@ export interface UIState {
   aiSuggestionInfo: AiSuggestionInfo | null;
   deleteConfirmationInfo: DeleteConfirmationInfo | null;
   thumbnailScale: 'small' | 'medium' | 'large';
+  settingsPopoverOpen: boolean;
+  exportPopoverOpen: boolean;
 }
 
 export interface AppState {
@@ -150,7 +152,9 @@ export type Action =
   | { type: 'SET_CONFIRM_CLOSE_INFO'; payload: { fileId: string; x: number; y: number } | null }
   | { type: 'SET_AI_SUGGESTION_INFO'; payload: AiSuggestionInfo | null }
   | { type: 'SET_DELETE_CONFIRMATION_INFO'; payload: DeleteConfirmationInfo | null }
-  | { type: 'SET_THUMBNAIL_SCALE'; payload: 'small' | 'medium' | 'large' };
+  | { type: 'SET_THUMBNAIL_SCALE'; payload: 'small' | 'medium' | 'large' }
+  | { type: 'SET_SETTINGS_POPOVER'; payload: boolean }
+  | { type: 'SET_EXPORT_POPOVER'; payload: boolean };
 
 export interface AppContextType {
   state: AppState;

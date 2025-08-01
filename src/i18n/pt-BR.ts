@@ -69,6 +69,7 @@ export const ptBR: Translation = {
   
   // Export
   export: {
+    title: 'Exportar',
     filesToExport: 'Arquivos para Exportar',
     exportMode: 'Modo de Exportação',
     combine: 'Combinar',

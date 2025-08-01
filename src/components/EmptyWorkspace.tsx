@@ -8,7 +8,7 @@ interface EmptyWorkspaceProps {
 }
 
 const EmptyWorkspace = ({ onFileDrop }: EmptyWorkspaceProps) => {
-    const { state } = useAppContext();
+    const { state, dispatch } = useAppContext();
     const { language } = state.uiState;
     const { t } = useTranslation(language);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -38,10 +38,24 @@ const EmptyWorkspace = ({ onFileDrop }: EmptyWorkspaceProps) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragOver(false);
+        
+        // Handle PDF file drops
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             onFileDrop(e.dataTransfer.files);
+            return;
         }
-    }, [onFileDrop]);
+        
+        // Handle page drops to create new file
+        const pageData = e.dataTransfer.getData("application/json");
+        if (pageData && pageData.startsWith('{')) {
+            try {
+                const { sourceFileId, pageIds } = JSON.parse(pageData);
+                dispatch({ type: 'MOVE_PAGES_TO_NEW_FILE', payload: { sourceFileId, pageIds } });
+            } catch (error) {
+                console.error("Error parsing page drop data:", error);
+            }
+        }
+    }, [onFileDrop, dispatch]);
 
     const shortcuts = [
         { keys: t('shortcuts.ctrlZ'), desc: t('shortcutDesc.undo') },
@@ -49,9 +63,9 @@ const EmptyWorkspace = ({ onFileDrop }: EmptyWorkspaceProps) => {
         { keys: t('shortcuts.ctrlClick'), desc: t('shortcutDesc.multiSelect') },
         { keys: t('shortcuts.shiftClick'), desc: t('shortcutDesc.rangeSelect') },
         { keys: t('shortcuts.doubleClickTab'), desc: t('shortcutDesc.rename') },
-        { keys: t('shortcuts.dragDropPages'), desc: t('shortcutDesc.dragPages') },
+        { keys: 'Drag + Drop', desc: 'Move pages between files' },
+        { keys: 'Ctrl + Drag', desc: 'Copy pages between files' },
         { keys: t('shortcuts.dragDropTabs'), desc: t('shortcutDesc.dragTabs') },
-        { keys: t('shortcuts.aiIcon'), desc: t('shortcutDesc.aiSuggest') },
         { keys: t('shortcuts.escape'), desc: t('shortcutDesc.closeModal') },
     ];
 

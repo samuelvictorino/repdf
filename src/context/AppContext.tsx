@@ -30,6 +30,8 @@ const initialState: AppState = {
     aiSuggestionInfo: null,
     deleteConfirmationInfo: null,
     thumbnailScale: 'medium',
+    settingsPopoverOpen: false,
+    exportPopoverOpen: false,
   },
 };
 
@@ -452,6 +454,10 @@ const appReducer = (state: AppState, action: Action): AppState => {
       return { ...state, uiState: { ...uiState, deleteConfirmationInfo: action.payload } };
     case 'SET_THUMBNAIL_SCALE':
       return { ...state, uiState: { ...uiState, thumbnailScale: action.payload } };
+    case 'SET_SETTINGS_POPOVER':
+      return { ...state, uiState: { ...uiState, settingsPopoverOpen: action.payload } };
+    case 'SET_EXPORT_POPOVER':
+      return { ...state, uiState: { ...uiState, exportPopoverOpen: action.payload } };
     default:
       return state;
   }
@@ -473,7 +479,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (state.uiState.deleteConfirmationInfo) {
         dispatch({ type: 'SET_DELETE_CONFIRMATION_INFO', payload: null });
     }
-  }, [state.uiState.contextualMenu, state.uiState.confirmCloseInfo, state.uiState.aiSuggestionInfo, state.uiState.deleteConfirmationInfo]);
+    if (state.uiState.settingsPopoverOpen) {
+        dispatch({ type: 'SET_SETTINGS_POPOVER', payload: false });
+    }
+    if (state.uiState.exportPopoverOpen) {
+        dispatch({ type: 'SET_EXPORT_POPOVER', payload: false });
+    }
+  }, [state.uiState.contextualMenu, state.uiState.confirmCloseInfo, state.uiState.aiSuggestionInfo, state.uiState.deleteConfirmationInfo, state.uiState.settingsPopoverOpen, state.uiState.exportPopoverOpen]);
 
   React.useEffect(() => {
     window.addEventListener('click', hideContextualMenu);

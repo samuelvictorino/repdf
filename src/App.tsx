@@ -1,13 +1,13 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { useAppContext } from './context/AppContext';
-import { loadPdfFromFiles, getPageAsBase64, extractTextFromPages } from './services/pdfService';
+import { loadPdfFromFiles, getPageAsBase64, extractTextFromPages, exportPdf } from './services/pdfService';
 import { runClientOcr } from './services/geminiService';
 import { aiService, canSuggestName, suggestFileName } from './services/aiService';
 import { ICONS } from './constants';
 import { useTranslation } from './i18n';
 import PageGrid from './components/PageGrid';
 import ModalManager from './components/ModalManager';
-import { Notification } from './types';
+import { Notification, Theme, AccentColor, Language } from './types';
 import EmptyWorkspace from './components/EmptyWorkspace';
 
 const NotificationsPopover = ({ notifications, onClear, onClose, language }: { notifications: Notification[], onClear: () => void, onClose: () => void, language: string }) => {
@@ -24,20 +24,20 @@ const NotificationsPopover = ({ notifications, onClear, onClose, language }: { n
         <div className="fixed top-16 right-4 z-50">
             <div className="w-80 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 animate-modal-show origin-top-right">
                 <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-                    <h3 className="font-semibold">{t('notifications.notifications')}</h3>
-                    <button onClick={onClear} className="text-sm text-accent-600 dark:text-accent-400 hover:underline">{t('actions.clear')}</button>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{t('notifications.notifications')}</h3>
+                    <button onClick={onClear} className="text-sm text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 hover:underline transition-colors">{t('actions.clear')}</button>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                     {notifications.length === 0 ? (
-                        <p className="text-center text-gray-500 p-6">{t('notifications.noNewNotifications')}</p>
+                        <p className="text-center text-gray-500 dark:text-gray-400 p-6">{t('notifications.noNewNotifications')}</p>
                     ) : (
                         <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                             {notifications.map(n => (
                                 <li key={n.id} className="p-3 flex items-start space-x-3 hover:bg-accent-50 dark:hover:bg-accent-900/20 hover:border-l-4 hover:border-accent-500 transition-all">
                                     <div className="w-5 h-5 flex-shrink-0 mt-0.5">{getIcon(n.type)}</div>
                                     <div>
-                                        <p className="text-sm">{n.message}</p>
-                                        <p className="text-xs text-gray-400">{new Date(n.timestamp).toLocaleTimeString()}</p>
+                                        <p className="text-sm text-gray-900 dark:text-gray-100">{n.message}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(n.timestamp).toLocaleTimeString()}</p>
                                     </div>
                                 </li>
                             ))}
@@ -54,15 +54,15 @@ const CloseConfirmationPopover = ({ fileId, x, y, onClose }: { fileId: string, x
   const { language } = state.uiState;
   const { t } = useTranslation(language);
   
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleConfirm = (e: React.MouseEvent) => {
     e.stopPropagation();
     dispatch({ type: 'CLOSE_FILE', payload: fileId });
     onClose();
   };
 
   // Calculate safe positioning to keep popover within screen bounds
-  const popoverWidth = 80; // button width
-  const popoverHeight = 40; // button height  
+  const popoverWidth = 120;
+  const popoverHeight = 50;
   const margin = 10;
   
   const safeX = Math.min(
@@ -71,21 +71,23 @@ const CloseConfirmationPopover = ({ fileId, x, y, onClose }: { fileId: string, x
   );
   
   const safeY = y + popoverHeight + margin > window.innerHeight 
-    ? y - popoverHeight - margin // Show above if no space below
-    : y + margin; // Show below as default
+    ? y - popoverHeight - margin 
+    : y + margin;
 
   return (
     <div 
-      className="fixed z-50 animate-modal-show"
-      style={{ left: safeX, top: safeY }}
+      className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 animate-modal-show"
+      style={{ left: safeX, top: safeY, width: popoverWidth }}
       onClick={(e) => e.stopPropagation()}
     >
-      <button
-        onClick={handleDelete}
-        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-md shadow-2xl transition-colors"
-      >
-        {t('actions.delete')}
-      </button>
+      <div className="p-2">
+        <button
+          onClick={handleConfirm}
+          className="w-full px-3 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center justify-center space-x-2"
+        >
+          <span>{t('actions.close')}</span>
+        </button>
+      </div>
     </div>
   );
 };
@@ -160,10 +162,7 @@ const AiSuggestionPopover = ({ fileId, x, y, loading, suggestion, error, provide
               onClick={handleApply}
               className="w-full text-left px-3 py-2 bg-accent-50 dark:bg-accent-900/30 hover:bg-accent-100 dark:hover:bg-accent-900/50 text-accent-700 dark:text-accent-300 rounded-md text-sm font-medium transition-colors border border-accent-200 dark:border-accent-700"
             >
-              <span className="flex items-center space-x-2">
-                <span className="w-4 h-4 text-accent-600 dark:text-accent-400">{ICONS.ai}</span>
-                <span className="truncate">{suggestion}</span>
-              </span>
+              <span className="truncate">{suggestion}</span>
             </button>
             <div className="text-xs text-gray-400 text-center">{t('ai.clickToApply')}</div>
           </div>
@@ -185,8 +184,8 @@ const DeleteConfirmationPopover = ({ x, y, pageCount, onConfirm, onCancel }: {
   const { t } = useTranslation(language);
   
   // Calculate safe positioning to keep popover within screen bounds
-  const popoverWidth = 320;
-  const popoverHeight = 140;
+  const popoverWidth = 120;
+  const popoverHeight = 50;
   const margin = 10;
   
   const safeX = Math.min(
@@ -203,56 +202,266 @@ const DeleteConfirmationPopover = ({ x, y, pageCount, onConfirm, onCancel }: {
     onConfirm();
   };
 
-  const handleCancel = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onCancel();
-  };
-
   return (
     <div 
       className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 animate-modal-show"
       style={{ left: safeX, top: safeY, width: popoverWidth }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="p-4">
-        <div className="flex items-center space-x-3 mb-3">
-          <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-            <span className="w-5 h-5 text-red-600 dark:text-red-400">{ICONS.delete}</span>
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-              {pageCount === 1 ? t('confirmations.deletePage') : t('confirmations.deleteMultiplePages').replace('{count}', pageCount.toString())}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t('confirmations.thisActionCannotBeUndone')}
-            </p>
+      <div className="p-2">
+        <button
+          onClick={handleConfirm}
+          className="w-full px-3 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center justify-center"
+        >
+          <span>{t('actions.delete')}</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const SettingsPopover = () => {
+  const { state, dispatch } = useAppContext();
+  const { theme, accentColor, language } = state.uiState;
+  const { t } = useTranslation(language);
+
+  const handleThemeChange = (newTheme: Theme) => {
+    dispatch({ type: 'SET_THEME', payload: newTheme });
+  };
+
+  const handleAccentChange = (newAccent: AccentColor) => {
+    dispatch({ type: 'SET_ACCENT_COLOR', payload: newAccent });
+  };
+
+  const handleLanguageChange = (newLanguage: Language) => {
+    dispatch({ type: 'SET_LANGUAGE', payload: newLanguage });
+  };
+
+  return (
+    <div 
+      className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 animate-modal-show z-50"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-4 space-y-6">
+        <div>
+          <h3 className="text-md font-medium mb-2">{t('settings.theme')}</h3>
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => handleThemeChange(Theme.LIGHT)} 
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
+                theme === Theme.LIGHT 
+                  ? 'bg-accent-600 text-white' 
+                  : 'bg-gray-200 dark:bg-gray-700 hover:bg-accent-100 dark:hover:bg-accent-900/30 hover:text-accent-700 dark:hover:text-accent-300'
+              }`}
+            >
+              {t('settings.light')}
+            </button>
+            <button 
+              onClick={() => handleThemeChange(Theme.DARK)} 
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
+                theme === Theme.DARK 
+                  ? 'bg-accent-600 text-white' 
+                  : 'bg-gray-200 dark:bg-gray-700 hover:bg-accent-100 dark:hover:bg-accent-900/30 hover:text-accent-700 dark:hover:text-accent-300'
+              }`}
+            >
+              {t('settings.dark')}
+            </button>
           </div>
         </div>
         
-        <div className="flex items-center justify-end space-x-2">
-          <button
-            onClick={handleCancel}
-            className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-          >
-            {t('actions.cancel')}
-          </button>
-          <button
-            onClick={handleConfirm}
-            className="px-3 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
-          >
-            {t('actions.delete')}
-          </button>
+        <div>
+          <h3 className="text-md font-medium mb-2">{t('settings.accentColor')}</h3>
+          <div className="flex items-center gap-2">
+            <input 
+              type="color" 
+              value={accentColor.hex}
+              onChange={(e) => handleAccentChange({ name: 'Custom', hex: e.target.value })}
+              className="w-12 h-12 p-0 border-none rounded-md bg-transparent cursor-pointer"
+            />
+            <span className="text-sm text-gray-600 dark:text-gray-300">{t('settings.chooseColor')}</span>
+          </div>
+        </div>
+        
+        <div>
+          <h3 className="text-md font-medium mb-2">{t('settings.language')}</h3>
+          <div className="flex flex-col space-y-2">
+            <button 
+              onClick={() => handleLanguageChange('pt-BR')} 
+              className={`px-4 py-2 rounded-md text-sm font-semibold text-left transition-colors ${
+                language === 'pt-BR' 
+                  ? 'bg-accent-600 text-white' 
+                  : 'bg-gray-200 dark:bg-gray-700 hover:bg-accent-100 dark:hover:bg-accent-900/30 hover:text-accent-700 dark:hover:text-accent-300'
+              }`}
+            >
+              {t('settings.portuguese')}
+            </button>
+            <button 
+              onClick={() => handleLanguageChange('en')} 
+              className={`px-4 py-2 rounded-md text-sm font-semibold text-left transition-colors ${
+                language === 'en' 
+                  ? 'bg-accent-600 text-white' 
+                  : 'bg-gray-200 dark:bg-gray-700 hover:bg-accent-100 dark:hover:bg-accent-900/30 hover:text-accent-700 dark:hover:text-accent-300'
+              }`}
+            >
+              {t('settings.english')}
+            </button>
+            <button 
+              onClick={() => handleLanguageChange('es')} 
+              className={`px-4 py-2 rounded-md text-sm font-semibold text-left transition-colors ${
+                language === 'es' 
+                  ? 'bg-accent-600 text-white' 
+                  : 'bg-gray-200 dark:bg-gray-700 hover:bg-accent-100 dark:hover:bg-accent-900/30 hover:text-accent-700 dark:hover:text-accent-300'
+              }`}
+            >
+              {t('settings.spanish')}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
+const ExportPopover = () => {
+  const { state, dispatch } = useAppContext();
+  const { files, pages, loadedDocs } = state.undoableState.present;
+  const { language } = state.uiState;
+  const { t } = useTranslation(language);
+  
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, boolean>>({});
+  const [combine, setCombine] = useState(false);
+  const [password, setPassword] = useState('');
+  const [split, setSplit] = useState(false);
+  const [splitSize, setSplitSize] = useState(40);
+  const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    setSelectedFiles(files.reduce((acc, file) => ({...acc, [file.id]: true}), {}));
+  }, [files]);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    dispatch({ type: 'ADD_NOTIFICATION', payload: { type: 'info', message: t('notifications.exportStarted') } });
+    try {
+      const filesToExport = files.filter(f => selectedFiles[f.id]);
+      await exportPdf(filesToExport, pages, loadedDocs, { combine, password, split, splitSizeMB: splitSize });
+      dispatch({ type: 'ADD_NOTIFICATION', payload: { type: 'success', message: t('notifications.exportSuccess') } });
+      dispatch({ type: 'SET_EXPORT_POPOVER', payload: false });
+    } catch (e: any) {
+      console.error('Export error:', e);
+      dispatch({ type: 'ADD_NOTIFICATION', payload: { type: 'error', message: `${t('notifications.exportError')}: ${e.message}` } });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div 
+      className="absolute left-0 top-full mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 animate-modal-show z-50 max-h-96 overflow-y-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-4 space-y-4">
+        <h3 className="text-lg font-semibold">{t('export.title')}</h3>
+        
+        <div>
+          <h4 className="text-sm font-medium mb-2">{t('export.filesToExport')}</h4>
+          <div className="space-y-2 max-h-32 overflow-y-auto">
+            {files.map(file => (
+              <label key={file.id} className="flex items-center space-x-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedFiles[file.id] || false}
+                  onChange={(e) => setSelectedFiles({...selectedFiles, [file.id]: e.target.checked})}
+                  className="rounded border-gray-300 text-accent-600 focus:ring-accent-500"
+                />
+                <span className="truncate">{file.name}</span>
+                <span className="text-gray-500">({file.pageIds.length} pages)</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-medium mb-2">{t('export.exportMode')}</h4>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setCombine(true)}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                combine ? 'bg-accent-600 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-accent-100 dark:hover:bg-accent-900/30'
+              }`}
+            >
+              {t('export.combine')}
+            </button>
+            <button
+              onClick={() => setCombine(false)}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                !combine ? 'bg-accent-600 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-accent-100 dark:hover:bg-accent-900/30'
+              }`}
+            >
+              {t('export.separate')}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-medium mb-2">{t('export.advancedOptions')}</h4>
+          <div className="space-y-3">
+            <input
+              type="password"
+              placeholder={t('export.passwordPlaceholder')}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700"
+            />
+            
+            {combine && (
+              <div>
+                <label className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={split}
+                    onChange={(e) => setSplit(e.target.checked)}
+                    className="rounded border-gray-300 text-accent-600 focus:ring-accent-500"
+                  />
+                  <span>Split large files (if larger than specified size)</span>
+                </label>
+                {split && (
+                  <div className="flex items-center space-x-2 mt-2 pl-6">
+                    <span className="text-sm">If larger than</span>
+                    <input
+                      type="number"
+                      value={splitSize}
+                      onChange={(e) => setSplitSize(Number(e.target.value))}
+                      className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700"
+                      min="1"
+                      max="200"
+                    />
+                    <span className="text-sm">MB</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button
+          onClick={handleExport}
+          disabled={isExporting || Object.values(selectedFiles).every(v => !v)}
+          className="w-full px-4 py-2 bg-accent-600 hover:bg-accent-700 disabled:bg-gray-400 text-white rounded-md text-sm font-medium transition-colors"
+        >
+          {isExporting ? t('export.exporting') : t('export.exportButton')}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const Header = () => {
   const { state, dispatch } = useAppContext();
   const { past, future } = state.undoableState;
+  const { files } = state.undoableState.present;
   const { notifications, importLoading, language } = state.uiState;
+  const hasFiles = files.length > 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -290,23 +499,34 @@ const Header = () => {
           <span className="w-8 h-8">{ICONS.logo}</span>
           <h1 className="text-xl font-bold tracking-tight">RePDF</h1>
         </div>
-        <div className="hidden md:flex items-center space-x-2">
-          <button onClick={handleOpenClick} disabled={importLoading} className="flex items-center space-x-2 px-3 py-2 text-sm font-semibold rounded-md bg-white dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:text-accent-600 dark:hover:text-accent-400 transition-all disabled:opacity-50 border border-gray-200 dark:border-gray-600 hover:border-accent-300 dark:hover:border-accent-600">
+        <div className="flex items-center space-x-2">
+          <button onClick={handleOpenClick} disabled={importLoading} className="flex items-center space-x-2 px-3 py-2 text-sm font-semibold rounded-md bg-white dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:text-accent-600 dark:hover:text-accent-400 hover:scale-[1.02] transition-all disabled:opacity-50 border border-gray-200 dark:border-gray-600 hover:border-accent-300 dark:hover:border-accent-600">
             {importLoading ? <span className="w-5 h-5">{ICONS.spinner}</span> : <span className="w-5 h-5">{ICONS.open}</span>}
             <span>{importLoading ? t('status.loading') : t('files.import')}</span>
           </button>
           <input type="file" ref={fileInputRef} onChange={(e) => handleFileChange(e.target.files)} multiple accept=".pdf" className="hidden" />
-          <button onClick={() => dispatch({type: 'SHOW_MODAL', payload: {type: 'export'}})} className="flex items-center space-x-2 px-3 py-2 text-sm font-semibold rounded-md bg-white dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:text-accent-600 dark:hover:text-accent-400 transition-all border border-gray-200 dark:border-gray-600 hover:border-accent-300 dark:hover:border-accent-600">
-            <span className="w-5 h-5">{ICONS.export}</span>
-            <span>{t('files.export')}</span>
-          </button>
+          
+          <div className="relative">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                dispatch({type: 'SET_EXPORT_POPOVER', payload: !state.uiState.exportPopoverOpen});
+              }} 
+              disabled={!hasFiles}
+              className="flex items-center space-x-2 px-3 py-2 text-sm font-semibold rounded-md bg-white dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:text-accent-600 dark:hover:text-accent-400 hover:scale-[1.02] transition-all border border-gray-200 dark:border-gray-600 hover:border-accent-300 dark:hover:border-accent-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="w-5 h-5">{ICONS.export}</span>
+              <span>{t('files.export')}</span>
+            </button>
+            {state.uiState.exportPopoverOpen && <ExportPopover />}
+          </div>
         </div>
       </div>
       <div className="flex items-center space-x-2">
         <button 
             onClick={() => dispatch({ type: 'UNDO' })} 
             disabled={past.length === 0} 
-            className="p-2 rounded-md hover:bg-accent-50 dark:hover:bg-accent-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-200 hover:text-accent-600 dark:hover:text-accent-400 transition-all"
+            className="p-2 rounded-md hover:bg-accent-50 dark:hover:bg-accent-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-200 hover:text-accent-600 dark:hover:text-accent-400 hover:scale-110 hover:shadow-lg transition-all duration-200"
             title={t('actions.undo')}
         >
             <span className="w-6 h-6">{ICONS.undo}</span>
@@ -314,7 +534,7 @@ const Header = () => {
         <button 
             onClick={() => dispatch({ type: 'REDO' })} 
             disabled={future.length === 0} 
-            className="p-2 rounded-md hover:bg-accent-50 dark:hover:bg-accent-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-200 hover:text-accent-600 dark:hover:text-accent-400 transition-all"
+            className="p-2 rounded-md hover:bg-accent-50 dark:hover:bg-accent-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-200 hover:text-accent-600 dark:hover:text-accent-400 hover:scale-110 hover:shadow-lg transition-all duration-200"
             title={t('actions.redo')}
         >
             <span className="w-6 h-6">{ICONS.redo}</span>
@@ -322,7 +542,7 @@ const Header = () => {
          <div className="relative">
             <button 
               onClick={toggleNotifications} 
-              className="relative p-2.5 rounded-lg bg-white dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 text-gray-600 dark:text-gray-300 hover:text-accent-600 dark:hover:text-accent-400 transition-all shadow-sm border-2 border-gray-200 dark:border-gray-600 hover:border-accent-300 dark:hover:border-accent-600 group"
+              className="relative p-2.5 rounded-lg bg-white dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 text-gray-600 dark:text-gray-300 hover:text-accent-600 dark:hover:text-accent-400 hover:scale-105 hover:shadow-md transition-all duration-200 shadow-sm border-2 border-gray-200 dark:border-gray-600 hover:border-accent-300 dark:hover:border-accent-600 group"
               title={t('notifications.notifications')}
             >
                 <span className="w-5 h-5 block">{ICONS.bell}</span>
@@ -335,14 +555,20 @@ const Header = () => {
             </button>
             {showNotifications && <NotificationsPopover notifications={notifications} onClear={() => dispatch({type: 'CLEAR_NOTIFICATIONS'})} onClose={() => setShowNotifications(false)} language={language} />}
          </div>
-        <button 
-          onClick={() => dispatch({type: 'SHOW_MODAL', payload: {type: 'settings'}})} 
-          className="relative p-2.5 rounded-lg bg-white dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 text-gray-600 dark:text-gray-300 hover:text-accent-600 dark:hover:text-accent-400 transition-all shadow-sm border-2 border-gray-200 dark:border-gray-600 hover:border-accent-300 dark:hover:border-accent-600 group"
-          title={t('settings.theme')}
-        >
-            <span className="w-5 h-5 block">{ICONS.settings}</span>
-            <span className="absolute inset-0 rounded-lg bg-accent-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
+        <div className="relative">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              dispatch({type: 'SET_SETTINGS_POPOVER', payload: !state.uiState.settingsPopoverOpen});
+            }} 
+            className="relative p-2.5 rounded-lg bg-white dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 text-gray-600 dark:text-gray-300 hover:text-accent-600 dark:hover:text-accent-400 hover:scale-105 hover:shadow-md transition-all duration-200 shadow-sm border-2 border-gray-200 dark:border-gray-600 hover:border-accent-300 dark:hover:border-accent-600 group"
+            title={t('settings.theme')}
+          >
+              <span className="w-5 h-5 block">{ICONS.settings}</span>
+              <span className="absolute inset-0 rounded-lg bg-accent-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
+          {state.uiState.settingsPopoverOpen && <SettingsPopover />}
+        </div>
       </div>
     </header>
   );
@@ -352,7 +578,7 @@ const Header = () => {
 const FileTabsBar = () => {
     const { state, dispatch } = useAppContext();
     const { files, activeFileId } = state.undoableState.present;
-    const { renameTargetId } = state.uiState;
+    const { renameTargetId, theme } = state.uiState;
     const [editingTabId, setEditingTabId] = useState<string|null>(null);
     const [tabName, setTabName] = useState('');
     const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
@@ -555,7 +781,10 @@ const FileTabsBar = () => {
                      onDragLeave={handleDragLeave}
                      onClick={() => dispatch({ type: 'SET_ACTIVE_FILE', payload: file.id })}
                      onDoubleClick={(e) => handleDoubleClick(file.id, file.name, e)}
-                     className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer whitespace-nowrap text-sm transition-all duration-200 relative ${activeFileId === file.id ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 dark:text-accent-200 font-semibold' : 'hover:bg-gray-200 dark:hover:bg-gray-700 hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:right-0 hover:after:h-0.5 hover:after:bg-accent-500 hover:after:transform hover:after:scale-x-100 hover:after:transition-transform hover:after:duration-200 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-accent-500 after:transform after:scale-x-0 after:transition-transform after:duration-200'} ${dragOverTabId === file.id ? 'scale-105 ring-2 ring-accent-500' : ''}`}>
+                     className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer whitespace-nowrap text-sm transition-all duration-200 relative group ${activeFileId === file.id ? 'font-semibold after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-accent-500 after:transform after:scale-x-100' : 'hover:bg-gray-200/70 dark:hover:bg-gray-700/70 text-gray-700 dark:text-gray-300 hover:text-accent-600 dark:hover:text-accent-400 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-accent-500 after:transform after:scale-x-0 after:transition-transform after:duration-300 after:origin-left hover:after:scale-x-100'} ${dragOverTabId === file.id ? 'scale-105 ring-2 ring-accent-500' : ''}`} style={activeFileId === file.id ? { 
+                       backgroundColor: theme === Theme.LIGHT ? 'var(--accent-tab-light-bg)' : 'var(--accent-tab-dark-bg)', 
+                       color: theme === Theme.LIGHT ? 'var(--accent-tab-light-text)' : 'var(--accent-tab-dark-text)' 
+                     } : {}}>
                     
                     {editingTabId === file.id ? (
                         <input
@@ -651,7 +880,25 @@ const ViewControlsToolbar = () => {
                  <button disabled={selectionCount === 0} onClick={() => dispatch({ type: 'ROTATE_SELECTED_PAGES', payload: 90 })} title="Rotate Right" className="flex items-center space-x-1 px-2 py-1 text-sm rounded-md hover:text-accent-600 dark:hover:text-accent-400 transition-colors disabled:opacity-50 disabled:hover:text-gray-500">
                     <span className="w-5 h-5">{ICONS.rotateRight}</span><span>Rotate Right</span>
                 </button>
-                <button disabled={selectionCount === 0} onClick={() => dispatch({ type: 'DELETE_SELECTED_PAGES' })} title="Delete Selected Pages" className="flex items-center space-x-1 px-2 py-1 text-sm rounded-md hover:text-accent-600 dark:hover:text-accent-400 transition-colors disabled:opacity-50 disabled:hover:text-gray-500">
+                <button disabled={selectionCount === 0} onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = rect.left + rect.width / 2;
+                  const y = rect.top;
+                  
+                  dispatch({ 
+                    type: 'SET_DELETE_CONFIRMATION_INFO', 
+                    payload: {
+                      x,
+                      y,
+                      pageCount: selectionCount,
+                      onConfirm: () => {
+                        dispatch({ type: 'DELETE_SELECTED_PAGES' });
+                        dispatch({ type: 'SET_DELETE_CONFIRMATION_INFO', payload: null });
+                      }
+                    }
+                  });
+                }} title="Delete Selected Pages" className="flex items-center space-x-1 px-2 py-1 text-sm rounded-md hover:text-accent-600 dark:hover:text-accent-400 transition-colors disabled:opacity-50 disabled:hover:text-gray-500">
                     <span className="w-5 h-5">{ICONS.delete}</span><span>Delete</span>
                 </button>
                 <button disabled={selectionCount === 0} onClick={handleOCR} title="Make Searchable with OCR" className="flex items-center space-x-1 px-2 py-1 text-sm rounded-md hover:text-accent-600 dark:hover:text-accent-400 transition-colors disabled:opacity-50 disabled:hover:text-gray-500">
@@ -766,6 +1013,27 @@ const App = () => {
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     root.style.setProperty('--accent-color-contrast', luminance > 0.5 ? 'black' : 'white');
     root.style.setProperty('--accent-color-500', `${r}, ${g}, ${b}`);
+    
+    // Create intelligent tab contrast colors for both light and dark themes
+    // For light theme: use lighter accent background with darker text
+    // For dark theme: use darker accent background with lighter text
+    const lightTabBg = Math.round(r + (255 - r) * 0.85); // Very light version (15% of the way from white)
+    const lightTabBgG = Math.round(g + (255 - g) * 0.85);
+    const lightTabBgB = Math.round(b + (255 - b) * 0.85);
+    
+    const darkTabBg = Math.round(r * 0.3); // Dark version (30% of original)
+    const darkTabBgG = Math.round(g * 0.3);
+    const darkTabBgB = Math.round(b * 0.3);
+    
+    root.style.setProperty('--accent-tab-light-bg', `rgb(${lightTabBg}, ${lightTabBgG}, ${lightTabBgB})`);
+    root.style.setProperty('--accent-tab-dark-bg', `rgb(${darkTabBg}, ${darkTabBgG}, ${darkTabBgB})`);
+    
+    // Text colors for optimal contrast
+    const lightTabTextLuminance = (0.299 * lightTabBg + 0.587 * lightTabBgG + 0.114 * lightTabBgB) / 255;
+    const darkTabTextLuminance = (0.299 * darkTabBg + 0.587 * darkTabBgG + 0.114 * darkTabBgB) / 255;
+    
+    root.style.setProperty('--accent-tab-light-text', lightTabTextLuminance > 0.5 ? '#1a1a1a' : '#ffffff');
+    root.style.setProperty('--accent-tab-dark-text', darkTabTextLuminance > 0.5 ? '#1a1a1a' : '#ffffff');
   }, [accentColor, theme]);
 
   // Keyboard shortcuts

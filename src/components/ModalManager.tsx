@@ -238,7 +238,7 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
     return (
         <>
         <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-lg z-50 flex flex-col animate-modal-show" onClick={onClose}>
-            <header className="flex-shrink-0 flex items-center justify-between p-4 text-white">
+            <header className="flex-shrink-0 flex items-center justify-between p-4 text-white" onClick={(e) => e.stopPropagation()}>
                 <div className="font-semibold">
                     {t('quickPreview.page')} {pages[payload.pageIds[currentIndex]].sourcePageIndex + 1}
                     <span className="text-gray-400 font-normal"> {t('quickPreview.of')} {loadedDoc.fileName}</span>
@@ -247,33 +247,28 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
                     <span className="text-sm text-gray-300">
                       {currentIndex + 1} / {payload.pageIds.length}
                     </span>
-                    <button onClick={onClose} className="text-gray-300 hover:text-white transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-gray-300 hover:text-white transition-colors">
                         <span className="w-8 h-8">{ICONS.close}</span>
                     </button>
                 </div>
             </header>
-            <main className="flex-grow flex items-center justify-center p-8 min-h-0 relative">
-                {isLoading && <span className="w-12 h-12 text-white absolute">{ICONS.spinner}</span>}
+            <main className="flex-grow flex items-center justify-center p-4 min-h-0 relative">
+                {isLoading && <span className="w-12 h-12 text-white absolute z-10">{ICONS.spinner}</span>}
                 <div 
                     ref={scrollContainerRef}
-                    className="overflow-auto max-w-full max-h-full scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
+                    className="overflow-auto w-full h-full scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent flex items-center justify-center"
                     onScroll={handleScroll}
-                    style={{ 
-                        maxWidth: scale > 1 ? '100%' : 'auto',
-                        maxHeight: scale > 1 ? '100%' : 'auto'
-                    }}
                 >
                     <div 
-                        className={`relative transition-opacity duration-150 ${isLoading || isFading ? 'opacity-0' : 'opacity-100'}`}
+                        className={`relative flex items-center justify-center transition-opacity duration-150 ${isLoading || isFading ? 'opacity-0' : 'opacity-100'}`}
                         onMouseMove={handleMouseMove}
                         onMouseLeave={() => setMagnifierStyle({ display: 'none' })}
                         style={{
                             transform: scale !== 1 ? `scale(${scale})` : 'none',
-                            transformOrigin: 'top left',
-                            minWidth: scale > 1 ? 'max-content' : 'auto'
+                            transformOrigin: 'center center'
                         }}
                     >
-                        <canvas ref={canvasRef} className="shadow-2xl rounded-md" />
+                        <canvas ref={canvasRef} className="shadow-2xl rounded-md max-w-full max-h-full" />
                         {scale === 1 && (
                             <div className="absolute inset-0 grid grid-cols-2">
                                 <div className="cursor-w-resize" onClick={(e) => { e.stopPropagation(); navigate(-1); }}></div>
@@ -283,29 +278,29 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
                     </div>
                 </div>
             </main>
-            <footer className="flex-shrink-0 flex items-center justify-between p-4">
+            <footer className="flex-shrink-0 flex items-center justify-between p-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center space-x-4">
-                    <button onClick={() => navigate(-1)} className="p-3 rounded-full bg-black/30 text-white hover:bg-black/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); navigate(-1); }} className="p-3 rounded-full bg-black/30 text-white hover:bg-black/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                          <span className="w-6 h-6 transform rotate-180">{ICONS.redo}</span>
                     </button>
-                    <button onClick={() => navigate(1)} className="p-3 rounded-full bg-black/30 text-white hover:bg-black/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); navigate(1); }} className="p-3 rounded-full bg-black/30 text-white hover:bg-black/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                          <span className="w-6 h-6">{ICONS.redo}</span>
                     </button>
                     
                     {/* Zoom Controls */}
                     <div className="flex items-center space-x-2 bg-black/30 rounded-full px-3 py-2">
-                        <button onClick={() => handleZoom(-0.2)} className="text-white hover:text-accent-400 transition-colors" title={t('quickPreview.zoomOut')}>
+                        <button onClick={(e) => { e.stopPropagation(); handleZoom(-0.2); }} className="text-white hover:text-accent-400 transition-colors" title={t('quickPreview.zoomOut')}>
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                             </svg>
                         </button>
                         <span className="text-white text-sm min-w-[3rem] text-center">{Math.round(scale * 100)}%</span>
-                        <button onClick={() => handleZoom(0.2)} className="text-white hover:text-accent-400 transition-colors" title={t('quickPreview.zoomIn')}>
+                        <button onClick={(e) => { e.stopPropagation(); handleZoom(0.2); }} className="text-white hover:text-accent-400 transition-colors" title={t('quickPreview.zoomIn')}>
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
                         </button>
-                        <button onClick={handleResetZoom} className="text-white hover:text-accent-400 transition-colors text-xs" title={t('quickPreview.resetZoom')}>
+                        <button onClick={(e) => { e.stopPropagation(); handleResetZoom(); }} className="text-white hover:text-accent-400 transition-colors text-xs" title={t('quickPreview.resetZoom')}>
                             1:1
                         </button>
                     </div>
@@ -313,7 +308,7 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
                 
                 <div className="flex items-center space-x-4">
                     <button 
-                        onClick={() => setShowThumbnails(!showThumbnails)}
+                        onClick={(e) => { e.stopPropagation(); setShowThumbnails(!showThumbnails); }}
                         className={`p-3 rounded-full transition-colors ${
                             showThumbnails 
                                 ? 'bg-accent-600 text-accent-contrast' 

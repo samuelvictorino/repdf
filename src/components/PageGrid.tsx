@@ -91,10 +91,10 @@ const AnnularMenu = ({ pageInfo }: { pageInfo: PageInfo }) => {
     }
 
     const buttons = [
-        { icon: ICONS.preview, action: handlePreview, position: '-translate-y-[140%]', tooltip: getTooltip("Preview selection", "Quick preview")},
-        { icon: ICONS.rotateRight, action: () => handleRotate(90), position: 'translate-x-[115%] -translate-y-[70%] rotate-90', tooltip: getTooltip("Rotate", "Rotate right") },
-        { icon: ICONS.delete, action: (e: React.MouseEvent) => handleDelete(e), position: 'translate-y-[140%]', tooltip: getTooltip("Delete", "Delete page") },
-        { icon: ICONS.rotateLeft, action: () => handleRotate(-90), position: '-translate-x-[115%] -translate-y-[70%] -rotate-90', tooltip: getTooltip("Rotate", "Rotate left") },
+        { icon: ICONS.preview, action: handlePreview, position: 'top-2 left-1/2 transform -translate-x-1/2', tooltip: getTooltip("Preview selection", "Quick preview")},
+        { icon: ICONS.rotateLeft, action: () => handleRotate(-90), position: 'top-1/2 left-2 transform -translate-y-1/2', tooltip: getTooltip("Rotate", "Rotate left") },
+        { icon: ICONS.rotateRight, action: () => handleRotate(90), position: 'top-1/2 right-2 transform -translate-y-1/2', tooltip: getTooltip("Rotate", "Rotate right") },
+        { icon: ICONS.delete, action: (e: React.MouseEvent) => handleDelete(e), position: 'bottom-2 left-1/2 transform -translate-x-1/2', tooltip: getTooltip("Delete", "Delete page") },
     ];
 
     return (
@@ -109,9 +109,20 @@ const AnnularMenu = ({ pageInfo }: { pageInfo: PageInfo }) => {
                         e.stopPropagation(); 
                         btn.action(e); 
                     }}
-                    className={`absolute w-9 h-9 rounded-full bg-white/90 dark:bg-gray-800/90 text-gray-800 dark:text-gray-100 flex items-center justify-center hover:bg-accent-50 dark:hover:bg-accent-900/50 hover:text-accent-600 dark:hover:text-accent-400 shadow-lg transform transition-all duration-200 hover:scale-110 ${btn.position} z-10`}
+                    className={`absolute w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 text-gray-700 dark:text-gray-200 flex items-center justify-center hover:shadow-xl shadow-lg transition-all duration-200 z-10 ${btn.position}`}
+                    style={{ '--tw-bg-opacity': '0.95' }}
+                    onMouseEnter={(e) => {
+                        const target = e.currentTarget as HTMLElement;
+                        target.style.backgroundColor = 'rgb(var(--accent-color-500))';
+                        target.style.color = 'var(--accent-color-contrast)';
+                    }}
+                    onMouseLeave={(e) => {
+                        const target = e.currentTarget as HTMLElement;
+                        target.style.backgroundColor = '';
+                        target.style.color = '';
+                    }}
                 >
-                    <span className="w-5 h-5">{btn.icon}</span>
+                    <span className="w-4 h-4">{btn.icon}</span>
                 </button>
             ))}
         </div>
@@ -122,12 +133,29 @@ const AnnularMenu = ({ pageInfo }: { pageInfo: PageInfo }) => {
 const PageThumbnail = React.memo(({ pageInfo, isSelected, isDimmed, selectionIndex }: { pageInfo: PageInfo, isSelected: boolean, isDimmed: boolean, selectionIndex?: number }) => {
   const { state } = useAppContext();
   const { loadedDocs } = state.undoableState.present;
+  const { thumbnailScale } = state.uiState;
   const loadedDoc = loadedDocs[pageInfo.sourceDocId];
-  const { canvasRef, isLoading } = usePdfPage(loadedDoc, pageInfo, 0.5);
+  
+  // Different canvas scales and sizes based on thumbnail scale
+  const getScaleAndSize = () => {
+    switch (thumbnailScale) {
+      case 'small':
+        return { canvasScale: 0.3, containerSize: 'w-20 h-20' };
+      case 'medium':
+        return { canvasScale: 0.5, containerSize: 'w-32 h-32' };
+      case 'large':
+        return { canvasScale: 0.7, containerSize: 'w-48 h-48' };
+      default:
+        return { canvasScale: 0.5, containerSize: 'w-32 h-32' };
+    }
+  };
+  
+  const { canvasScale, containerSize } = getScaleAndSize();
+  const { canvasRef, isLoading } = usePdfPage(loadedDoc, pageInfo, canvasScale);
   
   return (
-    <div className={`relative aspect-square rounded-lg shadow-md transition-all duration-300 group ${isSelected ? 'ring-4 ring-offset-2 ring-offset-gray-100 dark:ring-offset-gray-900 ring-accent-500 scale-105' : 'bg-white dark:bg-gray-800'} ${isDimmed ? 'opacity-30' : ''}`}>
-      <div className="w-full h-full rounded-md overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+    <div className={`relative ${containerSize} rounded-lg shadow-md transition-all duration-300 group hover:shadow-lg hover:scale-[1.02] ${isSelected ? 'ring-4 ring-offset-2 ring-offset-gray-100 dark:ring-offset-gray-900 scale-105' : 'bg-white dark:bg-gray-800 border-2 border-transparent'} ${isDimmed ? 'opacity-30' : ''}`} style={isSelected ? { '--tw-ring-color': 'rgb(var(--accent-color-500))' } : {}}>
+      <div className="absolute inset-0 rounded-md overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-800">
         {isLoading && <ShimmerPlaceholder />}
         <canvas ref={canvasRef} className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'} ${isSelected ? 'opacity-60' : ''}`} />
       </div>
@@ -284,7 +312,9 @@ const PageGrid = ({ fileId, pages }: PageGridProps) => {
                 dispatch({ type: 'REORDER_PAGES', payload: { fileId, dragIds: pageIds, dropIndex: finalDropIndex } });
             }
         } else {
-            dispatch({ type: 'SHOW_CONTEXTUAL_MENU', payload: { x: e.clientX, y: e.clientY, sourceFileId, targetFileId: fileId, pageIds, dropIndex: finalDropIndex } });
+            // Standard drag+drop: Ctrl/Cmd = copy, default = move
+            const copy = e.ctrlKey || e.metaKey;
+            dispatch({ type: 'MOVE_PAGES_TO_FILE', payload: { sourceFileId, targetFileId: fileId, pageIds, copy, dropIndex: finalDropIndex } });
         }
     } catch (error) {
         console.error("Error parsing drop data on page grid:", error);
@@ -307,13 +337,13 @@ const PageGrid = ({ fileId, pages }: PageGridProps) => {
     const base = "flex-grow p-4 md:p-8 grid gap-x-6 gap-y-8 auto-rows-min transition-all duration-500 ease-in-out";
     switch (thumbnailScale) {
       case 'small':
-        return `${base} grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12`;
+        return `${base} grid-cols-[repeat(auto-fit,minmax(5rem,1fr))] justify-items-center`;
       case 'medium':
-        return `${base} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8`;
+        return `${base} grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] justify-items-center`;
       case 'large':
-        return `${base} grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6`;
+        return `${base} grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] justify-items-center`;
       default:
-        return `${base} grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8`;
+        return `${base} grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] justify-items-center`;
     }
   };
 
