@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* RePDF - Global Styles */
 :root {
   --accent-color-50: #f0f9ff;

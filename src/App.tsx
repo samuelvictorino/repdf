@@ -723,18 +723,25 @@ const App = () => {
         b = parseInt(hex.slice(5, 7), 16);
     }
     
-    for(let i=0; i <= 20; i++) {
-        const shade = 50 * i;
-        const ratio = i / 10 - 1; // from -1 to 1
-        const mix = (c: number, t: number) => Math.round(t > 0 ? c * (1-t) + 255 * t : c * (1+t));
-        
-        const r_adj = mix(r, theme === 'light' ? ratio * -0.8 : ratio * 0.8);
-        const g_adj = mix(g, theme === 'light' ? ratio * -0.8 : ratio * 0.8);
-        const b_adj = mix(b, theme === 'light' ? ratio * -0.8 : ratio * 0.8);
-        
-        if(shade <= 950)
-            root.style.setProperty(`--accent-color-${shade}`, `${r_adj}, ${g_adj}, ${b_adj}`);
-    }
+    // Generate color scale from 50 to 950
+    const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+    shades.forEach((shade, index) => {
+        let factor;
+        if (shade < 500) {
+            // Lighter shades - mix with white
+            factor = (500 - shade) / 450; // 0 to 1
+            const mix = (c: number) => Math.round(c + (255 - c) * factor);
+            root.style.setProperty(`--accent-color-${shade}`, `${mix(r)}, ${mix(g)}, ${mix(b)}`);
+        } else if (shade === 500) {
+            // Base color
+            root.style.setProperty(`--accent-color-${shade}`, `${r}, ${g}, ${b}`);
+        } else {
+            // Darker shades - mix with black
+            factor = (shade - 500) / 450; // 0 to 1
+            const mix = (c: number) => Math.round(c * (1 - factor));
+            root.style.setProperty(`--accent-color-${shade}`, `${mix(r)}, ${mix(g)}, ${mix(b)}`);
+        }
+    });
 
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     root.style.setProperty('--accent-color-contrast', luminance > 0.5 ? 'black' : 'white');

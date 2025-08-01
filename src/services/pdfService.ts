@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export const loadPdfFromFiles = async (files: File[]): Promise<{ files: OutputFile[], pages: Record<string, PageInfo>, loadedDocs: Record<string, LoadedPdfDocument> }> => {
   const newFiles: OutputFile[] = [];
@@ -54,64 +54,20 @@ export const loadPdfFromFiles = async (files: File[]): Promise<{ files: OutputFi
   return { files: newFiles, pages: newPages, loadedDocs: newLoadedDocs };
 };
 
-export const renderThumbnail = async (
-  loadedDoc: LoadedPdfDocument,
-  pageInfo: PageInfo,
+export const renderPageToCanvas = (
+  page: any, // PDFPageProxy
   canvas: HTMLCanvasElement
-): Promise<void> => {
-  if (!canvas) return;
-  
-  // Cancel any existing render task on this canvas
-  const existingTask = canvas.getAttribute('data-render-task');
-  if (existingTask) {
-    try {
-      const taskId = parseInt(existingTask);
-      if (window.activePdfRenderTasks && window.activePdfRenderTasks[taskId]) {
-        window.activePdfRenderTasks[taskId].cancel();
-        delete window.activePdfRenderTasks[taskId];
-      }
-    } catch (e) {
-      // Ignore cancellation errors
-    }
-  }
-
-  const page = await loadedDoc.pdfDoc.getPage(pageInfo.sourcePageIndex + 1);
-  const viewport = page.getViewport({ scale: 1, rotation: pageInfo.rotation });
-  
+) => {
+  const viewport = page.getViewport({ scale: 1 });
   const scale = Math.min(200 / viewport.width, 200 / viewport.height);
-  const scaledViewport = page.getViewport({ scale, rotation: pageInfo.rotation });
+  const scaledViewport = page.getViewport({ scale, rotation: page.rotate });
 
   canvas.height = scaledViewport.height;
   canvas.width = scaledViewport.width;
   const context = canvas.getContext('2d');
-  if (!context) return;
+  if (!context) throw new Error('Could not get canvas context');
 
-  const renderContext = {
-    canvasContext: context,
-    viewport: scaledViewport,
-  };
-
-  // Track render tasks globally to prevent conflicts
-  if (!window.activePdfRenderTasks) {
-    window.activePdfRenderTasks = {};
-  }
-  
-  const renderTask = page.render(renderContext);
-  const taskId = Date.now() + Math.random();
-  window.activePdfRenderTasks[taskId] = renderTask;
-  canvas.setAttribute('data-render-task', taskId.toString());
-
-  try {
-    await renderTask.promise;
-  } catch (error) {
-    if (error.name !== 'RenderingCancelledException') {
-      throw error;
-    }
-  } finally {
-    // Clean up the render task
-    delete window.activePdfRenderTasks[taskId];
-    canvas.removeAttribute('data-render-task');
-  }
+  return page.render({ canvasContext: context, viewport: scaledViewport });
 };
 
 export const renderHighResPage = async (

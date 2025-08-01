@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { PageInfo } from '../types';
 import { ICONS } from '../constants';
-import { renderThumbnail } from '../services/pdfService';
+import { usePdfPage } from '../hooks/usePdfPage';
 import { useTranslation } from '../i18n';
 
 const ShimmerPlaceholder = () => (
@@ -103,8 +103,13 @@ const AnnularMenu = ({ pageInfo }: { pageInfo: PageInfo }) => {
                 <button
                     key={i}
                     title={btn.tooltip}
-                    onClick={(e) => { e.stopPropagation(); btn.action(); }}
-                    className={`absolute w-9 h-9 rounded-full bg-white/90 dark:bg-gray-800/90 text-gray-800 dark:text-gray-100 flex items-center justify-center hover:bg-accent-50 dark:hover:bg-accent-900/50 hover:text-accent-600 dark:hover:text-accent-400 shadow-lg transform transition-all duration-200 hover:scale-110 ${btn.position}`}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        btn.action(e); 
+                    }}
+                    className={`absolute w-9 h-9 rounded-full bg-white/90 dark:bg-gray-800/90 text-gray-800 dark:text-gray-100 flex items-center justify-center hover:bg-accent-50 dark:hover:bg-accent-900/50 hover:text-accent-600 dark:hover:text-accent-400 shadow-lg transform transition-all duration-200 hover:scale-110 ${btn.position} z-10`}
                 >
                     <span className="w-5 h-5">{btn.icon}</span>
                 </button>
@@ -117,35 +122,11 @@ const AnnularMenu = ({ pageInfo }: { pageInfo: PageInfo }) => {
 const PageThumbnail = React.memo(({ pageInfo, isSelected, isDimmed, selectionIndex }: { pageInfo: PageInfo, isSelected: boolean, isDimmed: boolean, selectionIndex?: number }) => {
   const { state } = useAppContext();
   const { loadedDocs } = state.undoableState.present;
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
   const loadedDoc = loadedDocs[pageInfo.sourceDocId];
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    if (canvasRef.current && loadedDoc) {
-      setIsLoading(true);
-      renderThumbnail(loadedDoc, pageInfo, canvasRef.current)
-        .then(() => {
-          if(isMounted) setIsLoading(false);
-        })
-        .catch((error) => {
-          if (!error.name?.includes('RenderingCancelledException')) {
-            console.error(error);
-          }
-          if(isMounted) setIsLoading(false);
-        });
-    }
-    
-    return () => { 
-      isMounted = false;
-    };
-  }, [pageInfo, loadedDoc, pageInfo.rotation]); 
+  const { canvasRef, isLoading } = usePdfPage(loadedDoc, pageInfo, 0.5);
   
   return (
-    <div className={`relative aspect-square rounded-lg shadow-md transition-all duration-300 group ${isSelected ? 'ring-4 ring-offset-2 ring-offset-gray-100 dark:ring-offset-gray-900 ring-accent-500 scale-105' : 'bg-white dark:bg-gray-800'} ${isDimmed ? 'opacity-30' : ''}`}>
+    <div className={`relative aspect-[3/4] rounded-lg shadow-md transition-all duration-300 group ${isSelected ? 'ring-4 ring-offset-2 ring-offset-gray-100 dark:ring-offset-gray-900 ring-accent-500 scale-105' : 'bg-white dark:bg-gray-800'} ${isDimmed ? 'opacity-30' : ''}`}>
       <div className="w-full h-full rounded-md overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-800">
         {isLoading && <ShimmerPlaceholder />}
         <canvas ref={canvasRef} className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'} ${isSelected ? 'opacity-60' : ''}`} />

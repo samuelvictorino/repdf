@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { ICONS } from '../constants';
 import { AccentColor, Theme, QuickPreviewPayload, PageInfo, Language } from '../types';
-import { exportPdf, renderHighResPage, extractTextFromPages } from '../services/pdfService';
-import { suggestFileName, canSuggestName } from '../services/geminiService';
+import { exportPdf, extractTextFromPages } from '../services/pdfService';
+import { suggestFileName } from '../services/geminiService';
 import { useTranslation } from '../i18n';
 import AIStatusIndicator from './AIStatusIndicator';
+import { usePdfPage } from '../hooks/usePdfPage';
 
 const DraggableResizableModal = ({ title, children, isFullScreen, onClose, initialSize = { width: 640, height: 400 } }: { title: string, children: React.ReactNode, isFullScreen?: boolean, onClose: () => void, initialSize?: {width: number, height: number} }) => {
     const { state } = useAppContext();
@@ -143,25 +144,23 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
     const { language } = state.uiState;
     const { t } = useTranslation(language);
     const [currentIndex, setCurrentIndex] = useState(payload.startIndex);
-    const [isLoading, setIsLoading] = useState(true);
     const [magnifierStyle, setMagnifierStyle] = useState<React.CSSProperties>({ display: 'none' });
     const [showThumbnails, setShowThumbnails] = useState(false);
     const [scale, setScale] = useState(1);
     const [scrollPosition, setScrollPosition] = useState({ x: 0, y: 0 });
-    const canvasRef = useRef<HTMLCanvasElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const thumbnailCanvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
     const [isFading, setIsFading] = useState(false);
-    const [thumbnailsLoaded, setThumbnailsLoaded] = useState<boolean[]>([]);
 
     const pageInfo = pages[payload.pageIds[currentIndex]];
     const loadedDoc = loadedDocs[pageInfo.sourceDocId];
+    const { canvasRef, isLoading } = usePdfPage(loadedDoc, pageInfo, scale);
 
     const navigate = (direction: number) => {
         setIsFading(true);
         setTimeout(() => {
             const newIndex = (currentIndex + direction + payload.pageIds.length) % payload.pageIds.length;
             setCurrentIndex(newIndex);
+            setIsFading(false);
         }, 150);
     };
 
@@ -170,15 +169,14 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
             setIsFading(true);
             setTimeout(() => {
                 setCurrentIndex(index);
+                setIsFading(false);
             }, 150);
         }
-        // Keep thumbnails panel open for easier navigation
     };
 
     const handleZoom = (delta: number) => {
         const newScale = Math.max(0.5, Math.min(3, scale + delta));
         setScale(newScale);
-        // Reset scroll position when zooming
         setScrollPosition({ x: 0, y: 0 });
         if (scrollContainerRef.current) {
             scrollContainerRef.current.scrollTo(0, 0);
@@ -215,58 +213,6 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [currentIndex, payload.pageIds.length, showThumbnails, scale]);
-
-    // Load main page
-    useEffect(() => {
-        let isMounted = true;
-        if (canvasRef.current && loadedDoc && pageInfo) {
-            setIsLoading(true);
-            renderHighResPage(loadedDoc, pageInfo, canvasRef.current, scale)
-                .then(() => { 
-                    if (isMounted) {
-                        setIsLoading(false); 
-                        setIsFading(false);
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error loading main page:', error);
-                    if (isMounted) {
-                        setIsLoading(false);
-                        setIsFading(false);
-                    }
-                });
-        }
-        return () => { isMounted = false; };
-    }, [pageInfo, loadedDoc, scale]);
-
-    // Initialize thumbnails array
-    useEffect(() => {
-        setThumbnailsLoaded(new Array(payload.pageIds.length).fill(false));
-        thumbnailCanvasRefs.current = new Array(payload.pageIds.length).fill(null);
-    }, [payload.pageIds.length]);
-
-    // Load thumbnails when panel is shown
-    useEffect(() => {
-        if (showThumbnails) {
-            payload.pageIds.forEach((pageId, index) => {
-                const canvas = thumbnailCanvasRefs.current[index];
-                const pageData = pages[pageId];
-                const docData = loadedDocs[pageData.sourceDocId];
-                
-                if (canvas && pageData && docData && !thumbnailsLoaded[index]) {
-                    renderHighResPage(docData, pageData, canvas, 0.3) // Scale down for thumbnail
-                        .then(() => {
-                            setThumbnailsLoaded(prev => {
-                                const newState = [...prev];
-                                newState[index] = true;
-                                return newState;
-                            });
-                        })
-                        .catch(console.error);
-                }
-            });
-        }
-    }, [showThumbnails, payload.pageIds, pages, loadedDocs, thumbnailsLoaded]);
     
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = e.currentTarget;
@@ -389,7 +335,6 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
                     <div className="flex items-center space-x-3 overflow-x-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent pb-2">
                         {payload.pageIds.map((pageId, index) => {
                             const pageData = pages[pageId];
-                            const docData = loadedDocs[pageData.sourceDocId];
                             const isActive = index === currentIndex;
                             
                             return (
@@ -406,16 +351,7 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
                                     }}
                                 >
                                     <div className="w-20 h-28 bg-gray-800 rounded-md overflow-hidden relative">
-                                        {!thumbnailsLoaded[index] && (
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <span className="w-4 h-4 text-white/50">{ICONS.spinner}</span>
-                                            </div>
-                                        )}
-                                        <canvas
-                                            ref={el => thumbnailCanvasRefs.current[index] = el}
-                                            className="w-full h-full object-contain"
-                                            style={{ display: thumbnailsLoaded[index] ? 'block' : 'none' }}
-                                        />
+                                        <Thumbnail pageInfo={pageData} />
                                         {isActive && (
                                             <div className="absolute inset-0 bg-accent-500/20 rounded-md" />
                                         )}
@@ -442,6 +378,28 @@ const QuickPreviewModal = ({ payload, onClose }: { payload: QuickPreviewPayload,
             className="fixed pointer-events-none w-52 h-52 rounded-full border-4 border-accent-500 bg-white shadow-xl"
             style={magnifierStyle}
         ></div>
+        </>
+    );
+};
+
+const Thumbnail = ({ pageInfo }: { pageInfo: PageInfo }) => {
+    const { state } = useAppContext();
+    const { loadedDocs } = state.undoableState.present;
+    const loadedDoc = loadedDocs[pageInfo.sourceDocId];
+    const { canvasRef, isLoading } = usePdfPage(loadedDoc, pageInfo, 0.3);
+
+    return (
+        <>
+            {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="w-4 h-4 text-white/50">{ICONS.spinner}</span>
+                </div>
+            )}
+            <canvas
+                ref={canvasRef}
+                className="w-full h-full object-contain"
+                style={{ display: !isLoading ? 'block' : 'none' }}
+            />
         </>
     );
 };

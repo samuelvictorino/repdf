@@ -83,6 +83,7 @@ export const es: Translation = {
   
   // Notifications
   notifications: {
+    notifications: 'Notificaciones',
     exportStarted: 'Iniciando exportación...',
     exportSuccess: '¡Exportación completada exitosamente!',
     exportError: 'Error en la exportación',
@@ -94,7 +95,20 @@ export const es: Translation = {
     pageDeleted: 'página eliminada',
     pagesDeleted: 'páginas eliminadas',
     pageRotated: 'página rotada',
-    pagesRotated: 'páginas rotadas'
+    pagesRotated: 'páginas rotadas',
+    loading: 'Cargando',
+    error: 'Error',
+    success: 'Éxito',
+    filesLoaded: 'Archivos cargados exitosamente',
+    fileExported: 'Archivo exportado exitosamente',
+    fileRenamed: 'Archivo renombrado exitosamente',
+    fileClosed: 'Archivo cerrado',
+    pageAdded: 'Página agregada',
+    pagesAdded: 'Páginas agregadas',
+    pageMoved: 'Página movida',
+    pagesMoved: 'Páginas movidas',
+    pageCopied: 'Página copiada',
+    pagesCopied: 'Páginas copiadas'
   },
   
   // Actions
@@ -149,5 +163,64 @@ export const es: Translation = {
     cannotRender: 'No se puede renderizar la página',
     cannotExport: 'No se puede exportar el archivo',
     cannotImport: 'No se puede importar el archivo'
+  },
+
+  // Confirmations
+  confirmations: {
+    deletePage: '¿Eliminar página?',
+    deleteMultiplePages: '¿Eliminar {count} páginas?',
+    closeFile: '¿Cerrar archivo?',
+    thisActionCannotBeUndone: 'Esta acción no se puede deshacer',
+    areYouSure: '¿Estás seguro?'
+  },
+
+  // AI Features
+  ai: {
+    suggestFileName: 'Sugerir nombre con IA',
+    generating: 'Generando...',
+    apply: 'Aplicar',
+    regenerate: 'Regenerar',
+    aiSuggestion: 'Sugerencia de IA',
+    error: 'Error al generar sugerencia',
+    offline: 'IA sin conexión disponible',
+    cloud: 'IA en la nube disponible'
+  },
+
+  // Quick Preview
+  quickPreview: {
+    title: 'Vista Previa Rápida',
+    of: 'de',
+    zoomIn: 'Acercar',
+    zoomOut: 'Alejar',
+    resetZoom: 'Restablecer Zoom',
+    close: 'Cerrar Vista Previa'
+  },
+
+  // Welcome/Empty State
+  welcome: {
+    title: 'Bienvenido a RePDF',
+    subtitle: 'Suite Ejecutivo PDF',
+    dragAndDrop: 'Arrastra y suelta archivos PDF aquí',
+    or: 'o',
+    clickToSelect: 'haz clic para seleccionar archivos',
+    supportedFormats: 'Formatos soportados: PDF',
+    features: {
+      organize: 'Organizar',
+      merge: 'Combinar',
+      split: 'Dividir',
+      rotate: 'Rotar',
+      delete: 'Eliminar',
+      export: 'Exportar'
+    }
+  },
+
+  // Keyboard Shortcuts Descriptions
+  shortcutDesc: {
+    undo: 'Deshacer la última acción',
+    redo: 'Rehacer la última acción deshecha',
+    selectAll: 'Seleccionar todas las páginas',
+    delete: 'Eliminar páginas seleccionadas',
+    copy: 'Copiar páginas seleccionadas',
+    paste: 'Pegar páginas copiadas'
   }
 };

@@ -83,6 +83,7 @@ export const en: Translation = {
   
   // Notifications
   notifications: {
+    notifications: 'Notifications',
     exportStarted: 'Starting export...',
     exportSuccess: 'Export completed successfully!',
     exportError: 'Export failed',

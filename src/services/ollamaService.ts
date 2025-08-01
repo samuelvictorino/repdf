@@ -21,7 +21,15 @@ class OllamaService {
   };
 
   async detectOllama(): Promise<boolean> {
-    const possibleUrls = [
+    // URLs possíveis baseadas no ambiente (localhost primeiro em desenvolvimento)
+    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const possibleUrls = isDevelopment ? [
+      'http://localhost:11434',
+      'http://127.0.0.1:11434',
+      'http://0.0.0.0:11434',
+      'http://ollama:11434'
+    ] : [
+      'http://ollama:11434',
       'http://localhost:11434',
       'http://127.0.0.1:11434',
       'http://0.0.0.0:11434'
