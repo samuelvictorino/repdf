@@ -248,6 +248,7 @@ const DeleteConfirmationPopover = ({ x, y, pageCount, onConfirm, onCancel }: {
   );
 };
 
+
 const Header = () => {
   const { state, dispatch } = useAppContext();
   const { past, future } = state.undoableState;
@@ -698,7 +699,7 @@ const ContextualMenu = () => {
 const App = () => {
   const { state, dispatch } = useAppContext();
   const { activeFileId, files, pages } = state.undoableState.present;
-  const { confirmCloseInfo, aiSuggestionInfo, theme, accentColor } = state.uiState;
+  const { confirmCloseInfo, aiSuggestionInfo, deleteConfirmationInfo, theme, accentColor } = state.uiState;
 
   // Apply theme class to document
   useEffect(() => {
